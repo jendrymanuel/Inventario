@@ -1,0 +1,142 @@
+@using Inventario.Data.Request
+@using Inventario.Data.Response
+
+<br />
+<div class="modal" style="display: @(ShowForm  ? "block" : "none"); background-color: rgba(0, 0, 0, 0.5);"
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><b>@TituloForm</b></h5>
+                </div>
+
+                <EditForm Model="proveedorRequest" OnValidSubmit="Send">
+                    
+                    @* Aqui modifique los Texbox *@
+                    <div class="modal-body">
+                        <div class="form-group mb-3">
+                            <label for="">NombreCompleto</label>
+                            <input type="text" class="form-control" @bind-value="proveedorRequest.FullName" required />
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="">Telefono</label>
+                            <input class="form-control" @bind-value="proveedorRequest.PhoneNumber" title="Ingrese un número de teléfono en formato 000-000-0000" required />
+                        </div>
+
+
+                        <div class="form-group mb-3">
+                            <label for="">Dirección</label>
+                            <input class="form-control" @bind-value="proveedorRequest.Address" required />
+                        </div>
+                    </div>
+
+                
+                    <div class="modal-footer">
+                        <div class="btn-group form-control">
+                            <button type="button" class="close btn btn-danger" data-dismiss="modal" aria-label="Close" @onclick="CloseCard">
+                                <span aria-hidden="true" class="oi oi-x"></span> Cerrar
+                            </button>
+                            <button type="submit" class="btn btn-success">
+                                <span class="oi oi-circle-check"></span> Registrar
+                            </button>
+                        </div>
+                    </div>
+
+                </EditForm>
+
+                
+
+            </div>
+        </div>
+    </div>
+<button class="btn btn-outline-success" @onclick="ShowCard">
+    NUEVO PROVEEDOR
+</button>
+
+<br />
+
+@code
+{
+    public string TituloForm => proveedorRequest.Id == 0 ? 
+    "AGREGAR PROVEEDOR" : "MODIFICAR PROVEEDOR";
+    
+    public string Filtro { get; set; } = "";
+    public bool ShowForm { get; set; } = false;
+    public List<ProveedorResponse> Proveedores { get; set; } = new();
+    public ProveedorRequest proveedorRequest { get; set; } = new();
+
+    void ShowCard()
+    {
+        ShowForm = true;
+    }
+
+    void CloseCard()
+    {
+        proveedorRequest  = new ProveedorRequest();
+        ShowForm = false;
+    }
+
+    async Task CargarProveedores()
+    {
+        var resultado =
+        await proveedorServices.Consultar(Filtro);
+        if (resultado.Exitoso)
+        {
+            Proveedores = resultado.Datos!;
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarProveedores();
+    }
+
+    void Cancelar()
+    {
+        proveedorRequest  = new ProveedorRequest();
+        ShowForm = false;
+    }
+    public async Task Send()
+    {
+        if(proveedorRequest.Id == 0)
+        {
+            //Debo registrar el contacto..
+            var r = await proveedorServices.Crear(proveedorRequest);
+            if (r.Exitoso)
+            {
+                Cancelar();
+                await CargarProveedores();
+                StateHasChanged();
+            }
+        }
+        else
+        {
+            //Debo solicitar modificar el contacto...
+            var r = await proveedorServices.Modificar(proveedorRequest);
+            if (r.Exitoso)
+            {
+                Cancelar();
+                await CargarProveedores();
+                StateHasChanged();
+            }
+        }
+    }
+
+    public void Seleccionar(int Id)
+    {
+        ShowForm = true;
+        proveedorRequest = Proveedores
+        .Where(c => c.Id == Id)
+        .Select(c => c.ToRequest())
+        .FirstOrDefault() ?? new ProveedorRequest();
+    }
+    public async Task Eliminar(ProveedorResponse item)
+    {
+        var resultado = await proveedorServices.Eliminar(item.ToRequest());
+        if (resultado.Exitoso)
+        {
+            await CargarProveedores();
+            StateHasChanged();
+        }
+    }
+}

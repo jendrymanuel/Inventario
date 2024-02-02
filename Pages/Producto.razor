@@ -1,0 +1,168 @@
+@using Inventario.Data.Request
+@using Inventario.Data.Response
+
+<br />
+<div class="modal" style="display: @(ShowForm  ? "block" : "none"); background-color: rgba(0, 0, 0, 0.5);"
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><b>@TituloForm</b></h5>
+                </div>
+
+                <EditForm Model="productoRequest" OnValidSubmit="Send">
+                    
+                    @* Aqui modifique los Texbox *@
+
+                    <div class="modal-body">
+                        <div class="form-group mb-3">
+                            <label for="">Stock</label>
+                            <input type="number" class="form-control" @bind-value="productoRequest.Stock" required />
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="">Descripción</label>
+                            <input class="form-control" @bind-value="productoRequest.Descripcion" title="Ingrese un número de teléfono en formato 000-000-0000" required />
+                        </div>
+
+
+                        <div class="form-group">
+                        <label>Proveedores:</label>
+                        <select class="form-control" @bind="productoRequest.ProveedorId">
+                            <option disabled selected>Seleccione un Proveedor</option>
+                                @foreach (var ciudad in Proveedores)
+                                {
+                                    <option value="@ciudad.Id">
+                                        @ciudad.FullName
+                                    </option>
+                                }
+                            </select>
+                        </div>
+                        <div class="form-group mb-3">
+                            <label for="">CostoUnidad</label>
+                            <input type="number" class="form-control" @bind-value="productoRequest.CostoUnidad" required />
+                        </div>
+
+                    </div>
+
+                
+                    <div class="modal-footer">
+                        <div class="btn-group form-control">
+                            <button type="button" class="close btn btn-danger" data-dismiss="modal" aria-label="Close" @onclick="CloseCard">
+                                <span aria-hidden="true" class="oi oi-x"></span> Cerrar
+                            </button>
+                            <button type="submit" class="btn btn-success">
+                                <span class="oi oi-circle-check"></span> Registrar
+                            </button>
+                        </div>
+                    </div>
+
+                </EditForm>
+
+                
+
+            </div>
+        </div>
+    </div>
+<button class="btn btn-outline-success" @onclick="ShowCard">
+    NUEVO PRODUCTO
+</button>
+
+<br />
+
+@code
+{
+    public string TituloForm => productoRequest.Id == 0 ? 
+    "AGREGAR PRODUCTO" : "MODIFICAR PRODUCTO";
+    
+    public string Filtro { get; set; } = "";
+    public bool ShowForm { get; set; } = false;
+    public List<ProductoResponse> Productos { get; set; } = new();
+    public List<ProveedorResponse> Proveedores { get; set; } = new();
+    public ProductoRequest productoRequest { get; set; } = new();
+
+    void ShowCard()
+    {
+        ShowForm = true;
+    }
+
+    void CloseCard()
+    {
+        productoRequest  = new ProductoRequest();
+        ShowForm = false;
+    }
+
+    async Task CargarProductos()
+    {
+        var resultado =
+        await productoServices.Consultar(Filtro);
+        if (resultado.Exitoso)
+        {
+            Productos = resultado.Datos!;
+        }
+    }
+
+    async Task CargarProveedores()
+    {
+        var resultado =
+        await proveedorServices.Consultar(Filtro);
+        if (resultado.Exitoso)
+        {
+            Proveedores = resultado.Datos!;
+        }
+    }
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarProductos();
+        await CargarProveedores();
+    }
+
+    void Cancelar()
+    {
+        productoRequest  = new ProductoRequest();
+        ShowForm = false;
+    }
+    public async Task Send()
+    {
+        if(productoRequest.Id == 0)
+        {
+            //Debo registrar el contacto..
+            productoRequest.Importe = productoRequest.Stock * productoRequest.CostoUnidad;
+            var r = await productoServices.Crear(productoRequest);
+            if (r.Exitoso)
+            {
+                Cancelar();
+                await CargarProductos();
+                StateHasChanged();
+            }
+        }
+        else
+        {
+            //Debo solicitar modificar el contacto...
+            var r = await productoServices.Modificar(productoRequest);
+            if (r.Exitoso)
+            {
+                Cancelar();
+                await CargarProductos();
+                StateHasChanged();
+            }
+        }
+    }
+
+    public void Seleccionar(int Id)
+    {
+        ShowForm = true;
+        productoRequest = Productos
+        .Where(c => c.Id == Id)
+        .Select(c => c.ToRequest())
+        .FirstOrDefault() ?? new ProductoRequest();
+    }
+    public async Task Eliminar(ProductoResponse item)
+    {
+        var resultado = await productoServices.Eliminar(item.ToRequest());
+        if (resultado.Exitoso)
+        {
+            await CargarProductos();
+            StateHasChanged();
+        }
+    }
+}
