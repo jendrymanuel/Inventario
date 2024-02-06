@@ -1,4 +1,4 @@
-namespace Inventario.Data.Request;
+ namespace Inventario.Data.Request;
 
 public class ProductoRequest
 {
